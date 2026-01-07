@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="application-name" content="QL Ảnh Editor">
+    <meta name="apple-mobile-web-app-title" content="QL Ảnh Editor">
+
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Quan Ly Anh Editor","short_name":"QL Anh","start_url":".","display":"standalone","theme_color":"#4CAF50","background_color":"#f4f4f9","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2659/2659360.png","sizes":"192x192","type":"image/png"}]}'>
+
+    <title>Quản Lý Ảnh Editor V3</title>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --bg: #f4f4f9;
+            --text: #333;
+            --card-bg: #fff;
+            --danger: #f44336;
+        }
+
+        /* Chặn chọn văn bản để giống App hơn */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none; 
+        }
+        
+        /* Cho phép chọn text ở ô input */
+        input { user-select: text; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            /* Xử lý tai thỏ iPhone */
+            padding-top: env(safe-area-inset-top); 
+            padding-bottom: env(safe-area-inset-bottom);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Khóa cuộn toàn body */
+        }
+
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: opacity 1s ease-out;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+            flex-shrink: 0; /* Không bị co lại */
+        }
+
+        .header-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        /* Container - Phần cuộn nội dung */
+        .container {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Cuộn mượt trên iOS */
+            padding-bottom: 100px; /* Tránh bị nút FAB che */
+        }
+
+        /* Cards */
+        .day-card, .history-card {
+            background: var(--card-bg);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .day-card:active { transform: scale(0.98); background: #eee; }
+        .day-title { font-weight: bold; font-size: 1.1rem; }
+        .highlight { color: var(--primary); font-weight: bold; }
+
+        /* Job Detail List */
+        .job-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .job-header {
+            font-weight: bold;
+            color: #555;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+
+        .job-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.1rem;
+        }
+
+        .empty-state { text-align: center; color: #888; margin-top: 50px; }
+
+        /* Footer Summary */
+        .footer-summary {
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            flex-shrink: 0;
+            /* Đẩy lên trên vùng an toàn của iPhone X */
+            padding-bottom: calc(15px + env(safe-area-inset-bottom));
+        }
+
+        /* Buttons & FAB */
+        .btn { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--secondary); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+
+        .fab {
+            position: fixed;
+            bottom: 30px; /* Đã tính toán tránh safe area */
+            bottom: calc(30px + env(safe-area-inset-bottom));
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            border: none;
+            z-index: 100;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 85%;
+            max-width: 350px;
+            animation: popUp 0.2s ease-out;
+        }
+
+        @keyframes popUp {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1.1rem;
+        }
+
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+        .hidden { display: none !important; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen" class="hidden">NGÀY MỚI NHIỀU TIỀN</div>
+
+    <div id="screen-home" style="display: flex; flex-direction: column; height: 100%;">
+        <header>
+            <div style="width: 70px;"></div>
+            <div>Thống Kê Tuần</div>
+            <button class="header-btn" onclick="openHistory()">Lịch sử</button>
+        </header>
+        <div class="container" id="week-list"></div>
+        <div class="footer-summary" style="flex-direction: column; align-items: flex-start;">
+            <div style="width: 100%; display:flex; justify-content:space-between; margin-bottom: 5px;">
+                <span>Tổng tháng hiện tại:</span>
+                <b id="month-qty">0 ảnh</b>
+            </div>
+            <div style="width: 100%; display:flex; justify-content:space-between;">
+                <span>Doanh thu:</span>
+                <b id="month-money" style="color: var(--primary); font-size: 1.2rem;">0 đ</b>
+            </div>
+            <div style="width: 100%; margin-top: 10px; display: flex; gap: 10px;">
+                <button class="btn btn-secondary" style="flex:1" onclick="showWeekSummary()">Chốt Tuần</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-detail" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
+        <header>
+            <button class="header-btn" onclick="goHome()">&#8592; Quay lại</button>
+            <div id="detail-title">Thứ ...</div>
+            <div style="width: 80px;"></div>
+        </header>
+        <div class="container" id="job-list"></div>
+        <div class="footer-summary">
+            <div>
+                Tổng ảnh: <span id="day-qty">0</span><br>
+                Tổng tiền: <span id="day-money" class="highlight">0 đ</span>
+            </div>
+        </div>
+        <button class="fab" onclick="openAddJobModal()">+</button>
+    </div>
+
+    <div id="screen-history" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
+        <header>
+            <button class="header-btn" onclick="goHome()">&#8592; Quay lại</button>
+            <div>Lịch Sử Doanh Thu</div>
+            <div style="width: 70px;"></div>
+        </header>
+        <div class="container" id="history-list">
+            <div class="empty-state">Chưa có dữ liệu lịch sử.</div>
+        </div>
+    </div>
+
+    <div id="modal-add-job" class="modal">
+        <div class="modal-content">
+            <h3>Thêm Job Mới</h3>
+            <div class="form-group">
+                <label>Số lượng ảnh:</label>
+                <input type="tel" id="input-qty" placeholder="Nhập số lượng" inputmode="numeric">
+            </div>
+            <div class="form-group">
+                <label>Đơn giá (VNĐ):</label>
+                <input type="text" id="input-price" value="10.000" inputmode="numeric" oninput="formatInputMoney(this)">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeModal('modal-add-job')">Hủy</button>
+                <button class="btn btn-primary" onclick="saveJob()">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-summary" class="modal">
+        <div class="modal-content">
+            <h3 style="text-align: center; color: var(--secondary);">Tổng Kết Tuần</h3>
+            <div class="stat-row"><span>Tổng ảnh:</span><b id="summary-qty">0</b></div>
+            <div class="stat-row"><span>Doanh thu:</span><b id="summary-money" class="highlight">0 đ</b></div>
+            <hr>
+            <p style="font-size: 0.9rem; color: #666;">Reset sẽ cộng dồn số liệu vào tháng và xóa sạch tuần này để làm tuần mới.</p>
+            <div class="modal-actions" style="justify-content: space-between;">
+                <button class="btn btn-danger" onclick="resetWeek()">Reset Tuần</button>
+                <button class="btn" onclick="closeModal('modal-summary')">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-month-end" class="modal">
+        <div class="modal-content">
+            <h3 style="text-align: center; color: var(--primary);">🎉 Chúc Mừng Tháng Mới!</h3>
+            <p>Tháng <b><span id="prev-month-name"></span></b> mày đã làm được:</p>
+            <div class="stat-row"><span>Tổng ảnh:</span><b id="end-month-qty">0</b></div>
+            <div class="stat-row"><span>Doanh thu:</span><b id="end-month-money" class="highlight">0 đ</b></div>
+            <hr>
+            <p style="font-size: 0.9rem; color: #666;">Dữ liệu đã được lưu vào mục "Lịch sử". Hệ thống sẽ reset để tính tháng mới.</p>
+            <button class="btn btn-primary" style="width: 100%" onclick="closeModal('modal-month-end')">OK, Chiến tháng mới!</button>
+        </div>
+    </div>
+
+    <script>
+        const DAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+        let currentDayIndex = null;
+        
+        let data = {
+            currentMonthStr: "", 
+            weekJobs: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] },
+            monthlyStats: { qty: 0, money: 0 },
+            history: [] 
+        };
+
+        function init() {
+            loadData();
+            checkSplash();
+            checkMonthChange(); 
+            renderHome();
+            updateMonthStatsUI();
+        }
+
+        // --- UTILS ---
+        function formatMoney(amount) {
+            return new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
+        }
+
+        function getRawNumber(str) {
+            return parseInt(str.replace(/\./g, '')) || 0;
+        }
+
+        function formatInputMoney(input) {
+            let val = input.value.replace(/\D/g, '');
+            if(val) {
+                input.value = new Intl.NumberFormat('vi-VN').format(val);
+            } else {
+                input.value = '';
+            }
+        }
+
+        // --- DATA HANDLER ---
+        function loadData() {
+            const stored = localStorage.getItem('photoEditorApp_v2');
+            if (stored) {
+                let parsed = JSON.parse(stored);
+                data = { ...data, ...parsed };
+            } else {
+                const now = new Date();
+                data.currentMonthStr = `${now.getMonth() + 1}/${now.getFullYear()}`;
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('photoEditorApp_v2', JSON.stringify(data));
+            updateMonthStatsUI();
+        }
+
+        // --- LOGIC THÁNG MỚI ---
+        function checkMonthChange() {
+            const now = new Date();
+            const thisMonthKey = `${now.getMonth() + 1}/${now.getFullYear()}`;
+
+            if (data.currentMonthStr && data.currentMonthStr !== thisMonthKey) {
+                if (data.monthlyStats.qty > 0) {
+                    data.history.unshift({
+                        month: data.currentMonthStr,
+                        qty: data.monthlyStats.qty,
+                        money: data.monthlyStats.money
+                    });
+                    
+                    document.getElementById('prev-month-name').innerText = data.currentMonthStr;
+                    document.getElementById('end-month-qty').innerText = data.monthlyStats.qty;
+                    document.getElementById('end-month-money').innerText = formatMoney(data.monthlyStats.money);
+                    document.getElementById('modal-month-end').style.display = 'flex';
+                }
+
+                data.monthlyStats = { qty: 0, money: 0 };
+                data.currentMonthStr = thisMonthKey;
+                saveData();
+            } else if (!data.currentMonthStr) {
+                 data.currentMonthStr = thisMonthKey;
+                 saveData();
+            }
+        }
+
+        // --- UI RENDER ---
+        function renderHome() {
+            const list = document.getElementById('week-list');
+            list.innerHTML = '';
+            
+            DAYS.forEach((dayName, index) => {
+                const jobs = data.weekJobs[index] || [];
+                const totalQty = jobs.reduce((sum, job) => sum + job.qty, 0);
+                const totalMoney = jobs.reduce((sum, job) => sum + (job.qty * job.price), 0);
+                
+                const div = document.createElement('div');
+                div.className = 'day-card';
+                div.innerHTML = `
+                    <span class="day-title">${dayName}</span>
+                    <div style="text-align:right">
+                        <div style="font-weight:bold">${totalQty} ảnh</div>
+                        <div style="font-size:0.8rem; color:#666">${formatMoney(totalMoney)}</div>
+                    </div>
+                `;
+                div.onclick = () => openDetail(index);
+                list.appendChild(div);
+            });
+        }
+
+        function renderJobs() {
+            const list = document.getElementById('job-list');
+            list.innerHTML = '';
+            const jobs = data.weekJobs[currentDayIndex];
+            
+            let totalQty = 0;
+            let totalMoney = 0;
+
+            if (jobs.length === 0) {
+                list.innerHTML = '<div class="empty-state">Chưa có job nào.<br>Ấn dấu + để thêm.</div>';
+            } else {
+                jobs.forEach((job, idx) => {
+                    totalQty += job.qty;
+                    totalMoney += job.qty * job.price;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'job-item';
+                    div.innerHTML = `
+                        <div class="job-header">Job ${idx + 1}</div>
+                        <div class="job-content">
+                            <span>${job.qty} ảnh</span>
+                            <span class="highlight">${formatMoney(job.qty * job.price)}</span>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            }
+
+            document.getElementById('day-qty').innerText = totalQty;
+            document.getElementById('day-money').innerText = formatMoney(totalMoney);
+        }
+
+        function updateMonthStatsUI() {
+            document.getElementById('month-qty').innerText = data.monthlyStats.qty + " ảnh";
+            document.getElementById('month-money').innerText = formatMoney(data.monthlyStats.money);
+        }
+
+        // --- NAVIGATION & SCREENS ---
+        function toggleScreen(showId) {
+            ['screen-home', 'screen-detail', 'screen-history'].forEach(id => {
+                const el = document.getElementById(id);
+                if (id === showId) {
+                    el.classList.remove('hidden');
+                    // Reset scroll
+                    el.querySelector('.container').scrollTop = 0; 
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+        }
+
+        function openDetail(index) {
+            currentDayIndex = index;
+            document.getElementById('detail-title').innerText = DAYS[index];
+            renderJobs();
+            toggleScreen('screen-detail');
+        }
+
+        function goHome() {
+            renderHome();
+            toggleScreen('screen-home');
+        }
+
+        function openHistory() {
+            renderHistory();
+            toggleScreen('screen-history');
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            
+            if(data.history.length === 0) {
+                list.innerHTML = '<div class="empty-state">Chưa có dữ liệu tháng cũ.</div>';
+                return;
+            }
+
+            data.history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-card';
+                div.innerHTML = `
+                    <span class="day-title">Tháng ${item.month}</span>
+                    <div style="text-align:right">
+                        <div>${item.qty} ảnh</div>
+                        <div class="highlight">${formatMoney(item.money)}</div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // --- ADD JOB ---
+        function openAddJobModal() {
+            document.getElementById('input-qty').value = '';
+            document.getElementById('modal-add-job').style.display = 'flex';
+            document.getElementById('input-qty').focus();
+        }
+
+        function saveJob() {
+            const qty = parseInt(document.getElementById('input-qty').value);
+            const priceStr = document.getElementById('input-price').value;
+            const price = getRawNumber(priceStr);
+
+            if (!qty || qty <= 0) { alert("Nhập số lượng ảnh đi mày ơi!"); return; }
+            if (!price || price < 0) { alert("Giá tiền không đúng!"); return; }
+
+            data.weekJobs[currentDayIndex].push({ qty, price });
+            saveData();
+            closeModal('modal-add-job');
+            renderJobs();
+        }
+
+        // --- RESET TUẦN ---
+        function showWeekSummary() {
+            let weekQty = 0;
+            let weekMoney = 0;
+            for (let i = 0; i < 6; i++) {
+                data.weekJobs[i].forEach(job => {
+                    weekQty += job.qty;
+                    weekMoney += job.qty * job.price;
+                });
+            }
+            document.getElementById('summary-qty').innerText = weekQty;
+            document.getElementById('summary-money').innerText = formatMoney(weekMoney);
+            document.getElementById('modal-summary').style.display = 'flex';
+        }
+
+        function resetWeek() {
+            if(!confirm("Chốt tuần nhé? Dữ liệu sẽ cộng vào tháng và xóa tuần cũ.")) return;
+            let weekQty = 0;
+            let weekMoney = 0;
+            for (let i = 0; i < 6; i++) {
+                data.weekJobs[i].forEach(job => {
+                    weekQty += job.qty;
+                    weekMoney += job.qty * job.price;
+                });
+                data.weekJobs[i] = [];
+            }
+            data.monthlyStats.qty += weekQty;
+            data.monthlyStats.money += weekMoney;
+            saveData();
+            closeModal('modal-summary');
+            goHome();
+        }
+
+        // --- SPLASH SCREEN ---
+        function checkSplash() {
+            const today = new Date().toDateString();
+            if (localStorage.getItem('lastOpenDate') !== today) {
+                const splash = document.getElementById('splash-screen');
+                splash.classList.remove('hidden');
+                setTimeout(() => {
+                    splash.style.opacity = '0';
+                    setTimeout(() => splash.classList.add('hidden'), 1000);
+                }, 2000);
+                localStorage.setItem('lastOpenDate', today);
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        window.onclick = function(e) { if (e.target.classList.contains('modal')) e.target.style.display = "none"; }
+
+        init();
+    </script>
+</body>
+</html>
