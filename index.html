@@ -8,10 +8,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4CAF50">
-    <meta name="application-name" content="QL Ảnh Sync">
-    <meta name="apple-mobile-web-app-title" content="QL Ảnh Sync">
+    <meta name="application-name" content="QL Ảnh V6">
+    <meta name="apple-mobile-web-app-title" content="QL Ảnh V6">
 
-    <title>Quản Lý Ảnh Editor V5 (Reset)</title>
+    <title>Quản Lý Ảnh Editor V6 (Edit/Delete)</title>
     <style>
         /* GIỮ NGUYÊN CSS CŨ */
         :root { --primary: #4CAF50; --secondary: #2196F3; --bg: #f4f4f9; --text: #333; --card-bg: #fff; --danger: #f44336; }
@@ -27,7 +27,8 @@
         .day-title { font-weight: bold; font-size: 1.1rem; }
         .highlight { color: var(--primary); font-weight: bold; }
         .job-item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 5px; }
-        .job-header { font-weight: bold; color: #555; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
+        /* Update Header Job để chứa nút sửa xóa */
+        .job-header { font-weight: bold; color: #555; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;}
         .job-content { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; }
         .empty-state { text-align: center; color: #888; margin-top: 50px; }
         .footer-summary { background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; z-index: 10; flex-shrink: 0; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
@@ -48,6 +49,11 @@
         
         /* Loading Indicator */
         #sync-status { position: fixed; top: 60px; right: 10px; font-size: 0.7rem; background: rgba(0,0,0,0.5); color: white; padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 2000;}
+
+        /* Style cho nút sửa xóa nhỏ */
+        .action-btn { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; margin-left: 5px; }
+        .btn-edit { background: #e3f2fd; color: #2196F3; }
+        .btn-del { background: #ffebee; color: #f44336; }
     </style>
 </head>
 <body>
@@ -103,7 +109,7 @@
 
     <div id="modal-add-job" class="modal">
         <div class="modal-content">
-            <h3>Thêm Job Mới</h3>
+            <h3 id="modal-job-title">Thêm Job Mới</h3>
             <div class="form-group"><label>Số lượng ảnh:</label><input type="tel" id="input-qty" placeholder="Nhập số lượng" inputmode="numeric"></div>
             <div class="form-group"><label>Đơn giá (VNĐ):</label><input type="text" id="input-price" value="10.000" inputmode="numeric" oninput="formatInputMoney(this)"></div>
             <div class="modal-actions"><button class="btn" onclick="closeModal('modal-add-job')">Hủy</button><button class="btn btn-primary" onclick="saveJob()">Lưu</button></div>
@@ -135,7 +141,7 @@
 
     <script type="module">
         // ------------------------------------------------------------------
-        // QUAN TRỌNG: DÁN LẠI CONFIG VÀO ĐÂY NHÉ
+        // DÁN LẠI CONFIG CỦA MÀY VÀO ĐÂY
         // ------------------------------------------------------------------
         const firebaseConfig = {
             apiKey: "AIzaSyA97Yk8o9lPZmD_TcFtpVM4tN3isCapLmc",
@@ -165,6 +171,7 @@
 
         const DAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
         let currentDayIndex = null;
+        let editingJobIndex = null; // Biến để biết đang sửa job nào
         
         let data = {
             currentMonthStr: "", 
@@ -177,13 +184,37 @@
         window.openDetail = (idx) => { currentDayIndex = idx; updateDetailView(); toggleScreen('screen-detail'); };
         window.goHome = () => { toggleScreen('screen-home'); };
         window.openHistory = () => { renderHistory(); toggleScreen('screen-history'); };
-        window.openAddJobModal = () => { document.getElementById('input-qty').value = ''; showModal('modal-add-job'); document.getElementById('input-qty').focus(); };
+        window.openAddJobModal = () => { 
+            editingJobIndex = null; // Reset trạng thái sửa
+            document.getElementById('modal-job-title').innerText = "Thêm Job Mới";
+            document.getElementById('input-qty').value = ''; 
+            // document.getElementById('input-price').value = '10.000'; // Giữ nguyên giá cũ nếu muốn
+            showModal('modal-add-job'); 
+            document.getElementById('input-qty').focus(); 
+        };
         window.closeModal = (id) => { document.getElementById(id).style.display = 'none'; };
         window.saveJob = saveJobLogic;
         window.showWeekSummary = showWeekSummaryLogic;
         window.resetWeek = resetWeekLogic;
         window.formatInputMoney = formatInputMoneyLogic;
-        window.factoryReset = factoryResetLogic; // HÀM MỚI
+        window.factoryReset = factoryResetLogic;
+        
+        // Hàm mới: Sửa & Xóa
+        window.editJob = (idx) => {
+            editingJobIndex = idx;
+            const job = data.weekJobs[currentDayIndex][idx];
+            document.getElementById('modal-job-title').innerText = "Sửa Job " + (idx + 1);
+            document.getElementById('input-qty').value = job.qty;
+            document.getElementById('input-price').value = new Intl.NumberFormat('vi-VN').format(job.price);
+            showModal('modal-add-job');
+        };
+
+        window.deleteJob = (idx) => {
+            if(confirm("Có chắc chắn xóa Job này không?")) {
+                data.weekJobs[currentDayIndex].splice(idx, 1);
+                saveDataCloud();
+            }
+        };
 
         // --- CORE SYNC ---
         function init() {
@@ -202,7 +233,6 @@
                         if(!document.getElementById('screen-detail').classList.contains('hidden')) renderJobs();
                         if(!document.getElementById('screen-history').classList.contains('hidden')) renderHistory();
                     } else {
-                        // Nếu bị reset hoặc chưa có data
                         const now = new Date();
                         data = {
                             currentMonthStr: `${now.getMonth() + 1}/${now.getFullYear()}`,
@@ -288,7 +318,16 @@
                 jobs.forEach((job, idx) => {
                     totalQty += job.qty; totalMoney += job.qty * job.price;
                     const div = document.createElement('div'); div.className = 'job-item';
-                    div.innerHTML = `<div class="job-header">Job ${idx + 1}</div><div class="job-content"><span>${job.qty} ảnh</span><span class="highlight">${formatMoney(job.qty * job.price)}</span></div>`;
+                    div.innerHTML = `
+                        <div class="job-header">
+                            Job ${idx + 1}
+                            <div>
+                                <button class="action-btn btn-edit" onclick="editJob(${idx})">Sửa</button>
+                                <button class="action-btn btn-del" onclick="deleteJob(${idx})">Xóa</button>
+                            </div>
+                        </div>
+                        <div class="job-content"><span>${job.qty} ảnh</span><span class="highlight">${formatMoney(job.qty * job.price)}</span></div>
+                    `;
                     list.appendChild(div);
                 });
             }
@@ -322,7 +361,15 @@
             const price = getRawNumber(document.getElementById('input-price').value);
             if (!qty || qty <= 0) { alert("Nhập số lượng ảnh đi mày ơi!"); return; }
             if (!price || price < 0) { alert("Giá tiền không đúng!"); return; }
-            data.weekJobs[currentDayIndex].push({ qty, price });
+            
+            if (editingJobIndex !== null) {
+                // Đang sửa
+                data.weekJobs[currentDayIndex][editingJobIndex] = { qty, price };
+            } else {
+                // Thêm mới
+                data.weekJobs[currentDayIndex].push({ qty, price });
+            }
+            
             saveDataCloud();
             window.closeModal('modal-add-job');
         }
@@ -345,7 +392,6 @@
             window.goHome();
         }
         
-        // --- LOGIC RESET DỮ LIỆU ---
         async function factoryResetLogic() {
             if(!confirm("⚠️ CẢNH BÁO: Mày có chắc chắn muốn XÓA TOÀN BỘ dữ liệu không?\n\n- Tất cả lịch sử các tháng cũ sẽ mất.\n- Dữ liệu tuần này sẽ mất.\n- Tổng tiền sẽ về 0.\n\nKhông khôi phục được đâu nhé!")) return;
             if(!confirm("Hỏi lại lần nữa: THẬT SỰ MUỐN XÓA SẠCH À?")) return;
