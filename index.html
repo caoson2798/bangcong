@@ -8,10 +8,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4CAF50">
-    <meta name="application-name" content="QL Ảnh V6">
-    <meta name="apple-mobile-web-app-title" content="QL Ảnh V6">
+    <meta name="application-name" content="QL Ảnh V7">
+    <meta name="apple-mobile-web-app-title" content="QL Ảnh V7">
 
-    <title>Quản Lý Ảnh Editor V6 (Edit/Delete)</title>
+    <title>Quản Lý Ảnh Editor V7 (Week Total)</title>
     <style>
         /* GIỮ NGUYÊN CSS CŨ */
         :root { --primary: #4CAF50; --secondary: #2196F3; --bg: #f4f4f9; --text: #333; --card-bg: #fff; --danger: #f44336; }
@@ -21,17 +21,19 @@
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #11998e, #38ef7d); display: flex; justify-content: center; align-items: center; z-index: 9999; color: white; font-size: 2rem; font-weight: bold; text-align: center; padding: 20px; box-sizing: border-box; transition: opacity 1s ease-out; }
         header { background-color: var(--primary); color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 1.1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; height: 50px; flex-shrink: 0; }
         .header-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
-        .container { flex: 1; padding: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 100px; }
+        .container { flex: 1; padding: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 120px; } /* Tăng padding bottom để tránh bị footer che */
         .day-card, .history-card { background: var(--card-bg); padding: 15px; margin-bottom: 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.1s; }
         .day-card:active { transform: scale(0.98); background: #eee; }
         .day-title { font-weight: bold; font-size: 1.1rem; }
         .highlight { color: var(--primary); font-weight: bold; }
         .job-item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 5px; }
-        /* Update Header Job để chứa nút sửa xóa */
         .job-header { font-weight: bold; color: #555; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;}
         .job-content { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; }
         .empty-state { text-align: center; color: #888; margin-top: 50px; }
-        .footer-summary { background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; z-index: 10; flex-shrink: 0; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
+        
+        /* Cập nhật Footer để chứa nhiều thông tin hơn */
+        .footer-summary { background: white; padding: 10px 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; z-index: 10; flex-shrink: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+        
         .btn { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 1rem; }
         .btn-primary { background-color: var(--primary); color: white; }
         .btn-secondary { background-color: var(--secondary); color: white; }
@@ -46,11 +48,7 @@
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
         .hidden { display: none !important; }
         .stat-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.1rem; }
-        
-        /* Loading Indicator */
         #sync-status { position: fixed; top: 60px; right: 10px; font-size: 0.7rem; background: rgba(0,0,0,0.5); color: white; padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 2000;}
-
-        /* Style cho nút sửa xóa nhỏ */
         .action-btn { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; margin-left: 5px; }
         .btn-edit { background: #e3f2fd; color: #2196F3; }
         .btn-del { background: #ffebee; color: #f44336; }
@@ -67,16 +65,25 @@
             <button class="header-btn" onclick="openHistory()">Lịch sử</button>
         </header>
         <div class="container" id="week-list"></div>
-        <div class="footer-summary" style="flex-direction: column; align-items: flex-start;">
-            <div style="width: 100%; display:flex; justify-content:space-between; margin-bottom: 5px;">
-                <span>Tổng tháng hiện tại:</span><b id="month-qty">...</b>
+        
+        <div class="footer-summary" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="background: #E3F2FD; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--secondary); font-weight: bold;">Tuần này:</span>
+                <div style="text-align: right;">
+                    <b id="week-home-qty">0</b> ảnh <br>
+                    <b id="week-home-money" style="color: var(--secondary); font-size: 1.1rem">0 đ</b>
+                </div>
             </div>
-            <div style="width: 100%; display:flex; justify-content:space-between;">
-                <span>Doanh thu:</span><b id="month-money" style="color: var(--primary); font-size: 1.2rem;">...</b>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 5px;">
+                <span>Tích lũy tháng (đã chốt):</span>
+                <div style="text-align: right;">
+                    <b id="month-qty">0</b> ảnh <br>
+                    <b id="month-money" style="color: var(--primary);">0 đ</b>
+                </div>
             </div>
-            <div style="width: 100%; margin-top: 10px; display: flex; gap: 10px;">
-                <button class="btn btn-secondary" style="flex:1" onclick="showWeekSummary()">Chốt Tuần</button>
-            </div>
+            
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 5px;" onclick="showWeekSummary()">Chốt Tuần & Reset</button>
         </div>
     </div>
 
@@ -171,7 +178,7 @@
 
         const DAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
         let currentDayIndex = null;
-        let editingJobIndex = null; // Biến để biết đang sửa job nào
+        let editingJobIndex = null;
         
         let data = {
             currentMonthStr: "", 
@@ -185,10 +192,9 @@
         window.goHome = () => { toggleScreen('screen-home'); };
         window.openHistory = () => { renderHistory(); toggleScreen('screen-history'); };
         window.openAddJobModal = () => { 
-            editingJobIndex = null; // Reset trạng thái sửa
+            editingJobIndex = null; 
             document.getElementById('modal-job-title').innerText = "Thêm Job Mới";
             document.getElementById('input-qty').value = ''; 
-            // document.getElementById('input-price').value = '10.000'; // Giữ nguyên giá cũ nếu muốn
             showModal('modal-add-job'); 
             document.getElementById('input-qty').focus(); 
         };
@@ -198,8 +204,6 @@
         window.resetWeek = resetWeekLogic;
         window.formatInputMoney = formatInputMoneyLogic;
         window.factoryReset = factoryResetLogic;
-        
-        // Hàm mới: Sửa & Xóa
         window.editJob = (idx) => {
             editingJobIndex = idx;
             const job = data.weekJobs[currentDayIndex][idx];
@@ -208,7 +212,6 @@
             document.getElementById('input-price').value = new Intl.NumberFormat('vi-VN').format(job.price);
             showModal('modal-add-job');
         };
-
         window.deleteJob = (idx) => {
             if(confirm("Có chắc chắn xóa Job này không?")) {
                 data.weekJobs[currentDayIndex].splice(idx, 1);
@@ -229,7 +232,7 @@
                         data = docSnapshot.data();
                         checkMonthChange();
                         renderHome();
-                        updateMonthStatsUI();
+                        // Không updateMonthStatsUI ở đây nữa vì đã gộp vào renderHome
                         if(!document.getElementById('screen-detail').classList.contains('hidden')) renderJobs();
                         if(!document.getElementById('screen-history').classList.contains('hidden')) renderHistory();
                     } else {
@@ -297,16 +300,33 @@
         function renderHome() {
             const list = document.getElementById('week-list');
             list.innerHTML = '';
+            
+            let weekQty = 0;
+            let weekMoney = 0;
+
             DAYS.forEach((dayName, index) => {
                 const jobs = data.weekJobs[index] || [];
                 const totalQty = jobs.reduce((sum, job) => sum + job.qty, 0);
                 const totalMoney = jobs.reduce((sum, job) => sum + (job.qty * job.price), 0);
+                
+                // Cộng dồn tính tổng tuần
+                weekQty += totalQty;
+                weekMoney += totalMoney;
+
                 const div = document.createElement('div');
                 div.className = 'day-card';
                 div.innerHTML = `<span class="day-title">${dayName}</span><div style="text-align:right"><div style="font-weight:bold">${totalQty} ảnh</div><div style="font-size:0.8rem; color:#666">${formatMoney(totalMoney)}</div></div>`;
                 div.onclick = () => window.openDetail(index);
                 list.appendChild(div);
             });
+
+            // Update Week Stats
+            document.getElementById('week-home-qty').innerText = weekQty;
+            document.getElementById('week-home-money').innerText = formatMoney(weekMoney);
+
+            // Update Month Stats
+            document.getElementById('month-qty').innerText = data.monthlyStats.qty;
+            document.getElementById('month-money').innerText = formatMoney(data.monthlyStats.money);
         }
 
         function renderJobs() {
@@ -336,7 +356,6 @@
         }
 
         function updateDetailView() { document.getElementById('detail-title').innerText = DAYS[currentDayIndex]; renderJobs(); }
-        function updateMonthStatsUI() { document.getElementById('month-qty').innerText = data.monthlyStats.qty + " ảnh"; document.getElementById('month-money').innerText = formatMoney(data.monthlyStats.money); }
         
         function toggleScreen(showId) {
             ['screen-home', 'screen-detail', 'screen-history'].forEach(id => {
@@ -363,10 +382,8 @@
             if (!price || price < 0) { alert("Giá tiền không đúng!"); return; }
             
             if (editingJobIndex !== null) {
-                // Đang sửa
                 data.weekJobs[currentDayIndex][editingJobIndex] = { qty, price };
             } else {
-                // Thêm mới
                 data.weekJobs[currentDayIndex].push({ qty, price });
             }
             
